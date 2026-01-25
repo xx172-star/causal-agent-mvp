@@ -1,0 +1,19 @@
+Successfully initialized!
+
+Summary:
+
+Outcome - wt82_71 
+Treatment - qsmk 
+Covariates - [ sex, race, age, education, smokeintensity, smokeyrs, exercise, active, wt71 ] 
+
+Size - 1566 x 67 
+
+Default formula for outcome models: 
+wt82_71 ~ qsmk + sex + race + education + exercise + active + age + (qsmk * age) + I(age * age) + smokeintensity + (qsmk * smokeintensity) + I(smokeintensity * smokeintensity) + smokeyrs + (qsmk * smokeyrs) + I(smokeyrs * smokeyrs) + wt71 + (qsmk * wt71) + I(wt71 * wt71) 
+
+Default formula for propensity models: 
+qsmk ~ sex + race + education + exercise + active + age + I(age * age) + smokeintensity + I(smokeintensity * smokeintensity) + smokeyrs + I(smokeyrs * smokeyrs) + wt71 + I(wt71 * wt71) 
+       ATE        SE    2.5 %   97.5 %
+1 2.655825 0.4684573 1.737666 3.573985
+       ATE        SE    2.5 %   97.5 %
+1 2.655825 0.4684573 1.737666 3.573985

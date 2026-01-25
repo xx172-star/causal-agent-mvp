@@ -1,0 +1,74 @@
+{
+  "timestamp": "2026-01-11T17:03:23",
+  "csv": {
+    "path": "/Users/xuxiaotong/Desktop/GU Research/causal-agent-mvp/test_auto_withX_overlap.csv",
+    "columns": [
+      "id",
+      "time",
+      "event",
+      "group",
+      "X1",
+      "X2"
+    ],
+    "dtypes_preview": {
+      "id": "int64",
+      "time": "int64",
+      "event": "int64",
+      "group": "int64",
+      "X1": "float64",
+      "X2": "int64"
+    },
+    "missing_rate_preview": {
+      "id": 0.0,
+      "time": 0.0,
+      "event": 0.0,
+      "group": 0.0,
+      "X1": 0.0,
+      "X2": 0.0
+    }
+  },
+  "planner": {
+    "capabilities_file": "/Users/xuxiaotong/Desktop/GU Research/causal-agent-mvp/pipeline_capabilities.json",
+    "chosen_capability": {
+      "name": "survival_iptw_km",
+      "script": "src/run_adjustedcurves_demo.py",
+      "inputs_required": [
+        "csv"
+      ],
+      "columns_required": [
+        "time",
+        "event",
+        "group"
+      ],
+      "optional_inputs": [
+        "covariates"
+      ],
+      "produces": [
+        "outputs/pipeline_survival.txt",
+        "outputs/pipeline_survival.json"
+      ],
+      "tags": [
+        "survival",
+        "iptw",
+        "adjustedCurves"
+      ]
+    },
+    "reasons": [
+      "selected by scoring (best_score=50)",
+      "detected columns time+event+group"
+    ]
+  },
+  "run": {
+    "cmd": [
+      "/Users/xuxiaotong/miniforge3/bin/python",
+      "/Users/xuxiaotong/Desktop/GU Research/causal-agent-mvp/src/run_adjustedcurves_demo.py",
+      "--csv",
+      "/Users/xuxiaotong/Desktop/GU Research/causal-agent-mvp/test_auto_withX_overlap.csv",
+      "--covariates",
+      "X1,X2"
+    ],
+    "returncode": 0,
+    "saved_output_txt": "/Users/xuxiaotong/Desktop/GU Research/causal-agent-mvp/outputs/pipeline_survival.txt"
+  },
+  "warnings": []
+}

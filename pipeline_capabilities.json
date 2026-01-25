@@ -1,0 +1,55 @@
+{
+  "capabilities": [
+    {
+      "id": "causal_ate",
+      "name": "Causal ATE (Doubly Robust)",
+      "description": "Estimate the average treatment effect (ATE) using doubly robust causal methods.",
+      "script": "src/run_causalmodels_demo.py",
+      "task_type": "causal_effect",
+      "inputs_required": ["csv", "treatment", "outcome"],
+      "columns_required": ["treatment", "outcome"],
+      "optional_inputs": ["covariates"],
+      "produces": ["outputs/causal_ate.txt", "outputs/causal_ate.json"],
+      "tags": ["causal", "ate", "doubly_robust", "CausalModels"]
+    },
+
+    {
+      "id": "survival_adjusted_curves",
+      "name": "Adjusted Survival Curves (IPTW)",
+      "description": "Estimate adjusted survival curves using IPTW and Kaplan–Meier methods.",
+      "script": "src/run_adjustedcurves_demo.py",
+      "task_type": "survival_analysis",
+      "inputs_required": ["csv", "time", "event", "group"],
+      "columns_required": ["time", "event", "group"],
+      "optional_inputs": ["covariates"],
+      "produces": ["outputs/survival_curves.txt", "outputs/survival_curves.json"],
+      "tags": ["survival", "iptw", "adjustedCurves"]
+    },
+
+    {
+      "id": "logistic_regression_assoc",
+      "name": "Logistic Regression (Association)",
+      "description": "Model association between covariates and a binary outcome using logistic regression.",
+      "script": "src/run_logistic_regression_demo.py",
+      "task_type": "association_analysis",
+      "inputs_required": ["csv", "outcome"],
+      "columns_required": ["outcome"],
+      "optional_inputs": ["covariates"],
+      "produces": ["outputs/logistic_regression.txt", "outputs/logistic_regression.json"],
+      "tags": ["logistic_regression", "binary", "association"]
+    },
+
+    {
+      "id": "linear_regression_assoc",
+      "name": "Linear Regression (Association)",
+      "description": "Model association between covariates and a continuous outcome using linear regression.",
+      "script": "src/run_linear_regression_demo.py",
+      "task_type": "association_analysis",
+      "inputs_required": ["csv", "outcome"],
+      "columns_required": ["outcome"],
+      "optional_inputs": ["covariates"],
+      "produces": ["outputs/linear_regression.txt", "outputs/linear_regression.json"],
+      "tags": ["linear_regression", "continuous", "association"]
+    }
+  ]
+}
