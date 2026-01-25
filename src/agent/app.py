@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from .schemas import RunRequest, RunResult
 from .graph import build_graph
 
-# NEW: import the *capability* router (returns {"capability_id", "reason"})
+# import the *capability* router (returns {"capability_id", "reason"})
 try:
     from .router_llm import llm_choose_capability
 except Exception:
@@ -60,7 +60,7 @@ def select_capability(req: RunRequest) -> Tuple[str, str, str]:
         try:
             obj = llm_choose_capability(
                 request=req.request,
-                csv_columns=None,  # keep minimal; you can pass columns later if you want
+                csv_columns=None,  
                 model=req.llm_model,
             )
             cap_id = (obj.get("capability_id") or "").strip()
@@ -110,8 +110,8 @@ def run(req: RunRequest):
             ).model_dump(),
         )
 
-    # Minimal support: route only to the two existing pipelines for now.
-    # (Logistic/linear capabilities may be declared, but graph execution may not support them yet.)
+    # route to the two existing pipelines
+    
     if cap_id == "causal_ate":
         req.task = "ate"
         req.use_llm_router = False  # prevent graph/router from overriding
