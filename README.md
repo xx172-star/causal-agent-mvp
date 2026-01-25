@@ -51,6 +51,21 @@ curl -s -X POST "http://127.0.0.1:8000/run" \
     "covariates": ["age"]
   }'
 ```
+Result (excerpt)
+```jason
+
+{
+  "status": "ok",
+  "selected_tool": "adjustedcurves",
+  "artifacts": {
+    "capability_id": "survival_adjusted_curves",
+    "selected_by": "llm"
+  },
+  "error": null
+}
+```
+
+✔ The agent selects the survival adjusted curves capability and runs an IPTW-adjusted Kaplan–Meier analysis.
 
 ## Demo 2 — Causal effect estimation (ATE)
 
@@ -69,3 +84,42 @@ curl -s -X POST "http://127.0.0.1:8000/run" \
     "covariates": ["x1", "x2", "x3", "x4", "x5"]
   }'
 ```
+Result (excerpt)
+```json
+{
+  "status": "ok",
+  "selected_tool": "causalmodels",
+  "artifacts": {
+    "capability_id": "causal_ate",
+    "summary_json": "out/api/causalmodels.summary.json"
+  },
+  "error": null
+}
+```
+
+✔ The agent selects the causal ATE capability and runs a doubly robust estimator, producing an ATE with confidence intervals and a structured JSON summary.
+
+Design principles
+
+Agentic, not generative
+LLMs are used only for decision-making, not statistical computation.
+
+Deterministic execution
+Once a capability is selected, analysis is fully reproducible.
+
+Explainable routing
+Each run records why a tool was chosen.
+
+Structured outputs
+Results are returned as both human-readable logs and machine-readable JSON.
+
+Project status
+
+This repository is an MVP / research prototype intended to demonstrate:
+
+agent-based orchestration of causal analyses
+
+clean separation between reasoning and estimation
+
+extensibility to additional causal tasks
+
