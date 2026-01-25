@@ -11,13 +11,13 @@ class RunRequest(BaseModel):
     csv: str = Field(..., description="Path to CSV file (relative to repo root or absolute)")
     task: TaskName = Field("auto", description="auto | ate | survival")
 
-    # NEW: natural language requirement (optional)
+    # natural language requirement (optional)
     request: Optional[str] = Field(
         None,
         description="Natural language requirement, e.g. 'Estimate causal effect of treatment on outcome'."
     )
 
-    # NEW: force a specific capability from pipeline_capabilities.json (optional)
+    # force a specific capability from pipeline_capabilities.json (optional)
     capability_id: Optional[str] = Field(
         None,
         description="Capability id from pipeline_capabilities.json, e.g. 'causal_ate'."
@@ -38,7 +38,7 @@ class RunRequest(BaseModel):
     # Output directory for artifacts
     out_dir: str = "out/api"
 
-    # Planner controls (optional) — already in your file
+    # Planner controls (optional) 
     use_llm_router: bool = False
     llm_model: str = "gpt-4o-mini"  # placeholder model name; change if you want
 
