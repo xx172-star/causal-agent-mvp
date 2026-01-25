@@ -51,7 +51,7 @@ curl -s -X POST "http://127.0.0.1:8000/run" \
     "covariates": ["age"]
   }'
 ```
-Result (excerpt)
+**Result (excerpt)**
 ```jason
 
 {
@@ -84,7 +84,7 @@ curl -s -X POST "http://127.0.0.1:8000/run" \
     "covariates": ["x1", "x2", "x3", "x4", "x5"]
   }'
 ```
-Result (excerpt)
+**Result (excerpt)**
 ```json
 {
   "status": "ok",
@@ -99,7 +99,7 @@ Result (excerpt)
 
 ✔ The agent selects the causal ATE capability and runs a doubly robust estimator, producing an ATE with confidence intervals and a structured JSON summary.
 
-Design principles
+**Design principles**
 
 Agentic, not generative
 LLMs are used only for decision-making, not statistical computation.
@@ -113,7 +113,7 @@ Each run records why a tool was chosen.
 Structured outputs
 Results are returned as both human-readable logs and machine-readable JSON.
 
-Project status
+**Project status**
 
 This repository is an MVP / research prototype intended to demonstrate:
 
