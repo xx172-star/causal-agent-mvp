@@ -41,7 +41,7 @@ def _capability_exists(cap_id: str) -> bool:
 
 def select_capability(req: RunRequest) -> Tuple[str, str, str]:
     """
-    Minimal routing (LLM-first, since this is your main goal):
+    Minimal routing (LLM-first):
 
       Priority:
         1) req.capability_id (force)
