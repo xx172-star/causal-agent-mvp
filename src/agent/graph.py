@@ -45,21 +45,28 @@ def choose_tool(state: AgentState) -> AgentState:
             obj = llm_choose_tool(req.model_dump(), model=req.llm_model)
             selected = obj["selected_tool"]
         except Exception as e:
-            # fail open: fallback to rule-based
-            state["error"] = f"LLM router failed (fallback to rule-based): {e}"
+            # fall back to rule-based on any error
+            state["error"] = f"LLM router error: {e}"
 
     state["selected_tool"] = selected
     return state
 
 
-def run_tool(state: AgentState) -> AgentState:
+def run_selected_tool(state: AgentState) -> AgentState:
     req = state["req"]
-    tool = state["selected_tool"]
+    selected = state.get("selected_tool") or choose_tool_rule_based(req)
 
     try:
-        if tool == "causalmodels":
-            if not req.treatment or not req.outcome:
-                raise ValueError("ATE requires 'treatment' and 'outcome'.")
+        if selected == "adjustedcurves":
+            r = run_adjustedcurves_tool(
+                csv=req.csv,
+                group=req.group,
+                time=req.time,
+                event=req.event,
+                covariates=req.covariates,
+                out_dir=req.out_dir,
+            )
+        else:
             r = run_causalmodels_tool(
                 csv=req.csv,
                 treatment=req.treatment,
@@ -68,32 +75,23 @@ def run_tool(state: AgentState) -> AgentState:
                 max_covariates=req.max_covariates,
                 out_dir=req.out_dir,
             )
-        elif tool == "adjustedcurves":
-            if not req.group or not req.time or not req.event:
-                raise ValueError("Survival requires 'group', 'time', and 'event'.")
-            r = run_adjustedcurves_tool(
-                csv=req.csv,
-                group=req.group,
-                time=req.time,
-                event=req.event,
-                covariates=req.covariates,
-            )
-        else:
-            raise ValueError(f"Unknown tool: {tool}")
 
         state["tool_result"] = r
-        return state
-
     except Exception as e:
         state["error"] = str(e)
-        return state
+
+    return state
 
 
 def build_graph():
     g = StateGraph(AgentState)
     g.add_node("choose_tool", choose_tool)
-    g.add_node("run_tool", run_tool)
+    g.add_node("run_selected_tool", run_selected_tool)
+
     g.set_entry_point("choose_tool")
-    g.add_edge("choose_tool", "run_tool")
-    g.add_edge("run_tool", END)
+    g.add_edge("choose_tool", "run_selected_tool")
+    g.add_edge("run_selected_tool", END)
     return g.compile()
+
+
+graph = build_graph()
