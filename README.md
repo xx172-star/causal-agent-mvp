@@ -76,7 +76,7 @@ JSON summary written to:
 out/api/causalmodels.summary.json
 ```
 
-Demo 2: Survival Adjusted Curves
+###Demo 2: Survival Adjusted Curves
 
 Compare survival between treatment groups using inverse probability weighted Kaplan–Meier curves.
 
@@ -110,7 +110,7 @@ out/api/adjustedcurves.summary.json
 
 
 
-Output Format
+###Output Format
 
 Each run returns:
 
@@ -137,7 +137,7 @@ Example:
 ```
 
 
-Input Data Assumptions
+###Input Data Assumptions
 
 Treatment is binary (0/1 or two distinct levels)
 
@@ -149,7 +149,7 @@ Positivity holds (non-zero probability of treatment assignment)
 
 If these conditions are violated, results may be unstable or estimation may fail.
 
-Notes
+###Notes
 
 Informational messages from R packages (e.g., package loading) may appear in stderr and can be safely ignored.
 
