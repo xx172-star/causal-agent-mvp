@@ -142,17 +142,87 @@ Example:
 ```
 
 
-### Input Data Assumptions
+## Input Data Requirements
 
-Treatment is binary (0/1 or two distinct levels)
+This framework assumes that the input dataset satisfies the following requirements.  
+As long as these conditions are met, the pipeline can be executed end-to-end without modification to the core codebase.
 
-Covariates are measured prior to treatment
+---
 
-No missing values after preprocessing
+### General Format
 
-Positivity holds (non-zero probability of treatment assignment)
+- Input data must be provided as a **CSV file**.
+- Each row corresponds to one observational unit (e.g., patient or subject).
+- Column names must be explicitly referenced in the API request.
 
-If these conditions are violated, results may be unstable or estimation may fail.
+---
+
+### Required Variables
+
+The required variables depend on the selected causal task.
+
+#### 1. Treatment / Exposure
+
+- A treatment (or exposure) variable must be specified.
+- The treatment variable must be **binary**, represented as:
+  - `0 / 1`, or  
+  - two distinct values that clearly encode treated vs. control groups.
+- Treatment assignment is assumed to be observed and fixed at baseline.
+
+---
+
+#### 2. Outcome
+
+- For **ATE estimation**:
+  - The outcome may be **binary or continuous**.
+- For **survival analysis**:
+  - A **time-to-event** variable must be provided.
+  - An **event indicator** must be provided (`1` = event, `0` = censored).
+- Outcome variables must not contain missing values after preprocessing.
+
+---
+
+#### 3. Covariates (Confounders)
+
+- One or more covariates may be provided to adjust for confounding.
+- Covariates must:
+  - Be measured **prior to treatment assignment**
+  - Be numeric or numerically encoded (e.g., one-hot encoding for categorical variables)
+- Missing values must be handled prior to analysis.
+
+---
+
+### Structural and Causal Assumptions
+
+The framework relies on standard causal inference assumptions:
+
+- **Consistency**: observed outcomes correspond to the assigned treatment.
+- **Positivity**: each covariate pattern has a non-zero probability of receiving each treatment level.
+- **No unmeasured confounding**, conditional on the provided covariates.
+
+These assumptions are not automatically verified by the framework and must be justified by the user.
+
+---
+
+### Preprocessing Expectations
+
+To ensure stable execution:
+
+- All required variables must be present and correctly specified in the request.
+- Missing values should be removed or imputed prior to execution.
+- Categorical variables should be encoded numerically.
+- Extremely rare treatment groups or severe lack of covariate overlap may lead to unstable estimates.
+
+---
+
+### Notes on Robustness
+
+- Informational messages or warnings from underlying statistical packages may appear during execution and do not necessarily indicate failure.
+- If the input data violate the requirements above (e.g., severe non-positivity), estimation results may be unstable or unreliable.
+
+In summary, this framework is designed to be **methodologically transparent rather than permissive**:  
+it does not attempt to automatically coerce invalid inputs, but instead clearly documents the conditions under which valid causal analyses can be performed.
+
 
 ### Notes
 
