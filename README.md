@@ -21,6 +21,7 @@ The system combines rule-based checks, LLM-assisted routing, and deterministic s
 ## Repository Structure
 
 causal-agent-mvp/
+
 ├── data/ # Example datasets (PBC, GBSG2)
 
 ├── scripts/ # Demo and helper scripts
