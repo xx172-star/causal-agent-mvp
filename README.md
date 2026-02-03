@@ -1,125 +1,143 @@
-# causal-agent-mvp
+An agent-based causal inference pipeline that automatically selects and executes appropriate causal analysis tools (e.g., ATE estimation, survival adjusted curves) based on user requests and dataset structure.
+The system integrates rule-based checks, LLM-assisted routing, and deterministic statistical backends, producing both human-readable outputs and structured JSON artifacts.
 
-A minimal **agentic causal analysis API** that routes natural-language requests to appropriate causal inference tools and executes them deterministically.
+Features
 
-The system demonstrates how an LLM (optional) can be used for **capability selection**, while the statistical analysis itself remains transparent, reproducible, and auditable.
+Agentic workflow for causal inference
 
----
+Automatic capability selection (e.g., ATE vs. survival analysis)
 
-## What this project does
+Support for:
 
-The API exposes a single `/run` endpoint that accepts:
-- a CSV dataset
-- a natural-language request
-- optional column specifications (treatment, outcome, time, event, covariates)
+Average Treatment Effect (ATE) estimation
 
-A lightweight agentic workflow then:
-1. **Interprets the request** (rule-based or LLM-based routing)
-2. **Selects the appropriate causal capability**
-3. **Executes the analysis deterministically**
-4. **Returns structured outputs** (text + JSON artifacts)
+Survival analysis with confounder-adjusted curves
 
----
+End-to-end reproducible demos with real datasets
 
-## Supported capabilities
+Structured JSON summaries for downstream use
 
-- **Causal ATE estimation**
-  - Doubly robust estimators via `CausalModels`
-  - Example: IHDP benchmark data
+Repository Structure
+causal-agent-mvp/
+├── data/                 # Example datasets (PBC, GBSG2)
+├── scripts/              # Demo and helper scripts
+├── src/agent/            # Agent logic, router, schemas
+├── out/                  # Runtime outputs (gitignored)
+├── README.md
 
-- **Adjusted survival analysis**
-  - IPTW-adjusted Kaplan–Meier curves via `adjustedCurves`
-  - Example: Dialysis survival data
+Requirements
 
----
+Python 3.9+
 
-## Demo 1 — Survival analysis with covariate adjustment
+R (for survival adjusted curves)
 
-**Natural-language request**
-> “Compare survival between groups with covariate adjustment”
+Required R packages:
 
-```bash
+adjustedCurves
+
+WeightIt
+
+survival
+
+Quickstart: End-to-End Demos
+
+Below are two fully tested demo commands.
+Both have been run successfully end-to-end and generate structured JSON outputs under out/api/.
+
+Demo 1: Average Treatment Effect (ATE)
+
+Estimate the causal effect of treatment on a binary 5-year outcome using doubly robust estimation.
+
 curl -s -X POST "http://127.0.0.1:8000/run" \
   -H "Content-Type: application/json" \
   -d '{
-    "csv": "data/PBC_agent01.csv",
-    "request": "Compare survival between groups with covariate adjustment",
+    "csv": "data/PBC_ate5y_cc.csv",
+    "request": "Estimate the causal effect (ATE) of treatment on 5-year survival",
+    "use_llm_router": true,
+    "treatment": "trt01",
+    "outcome": "Y5y",
+    "covariates": ["age","bili","albumin","protime","edema","platelet","ast"]
+  }'
+
+
+Expected behavior
+
+Capability selected: causal_ate
+
+Backend: CausalModels::doubly_robust
+
+Output includes ATE, standard error, and 95% confidence interval
+
+JSON summary written to:
+
+out/api/causalmodels.summary.json
+
+Demo 2: Survival Adjusted Curves
+
+Compare survival between treatment groups using inverse probability weighted Kaplan–Meier curves.
+
+curl -s -X POST "http://127.0.0.1:8000/run" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "csv": "data/GBSG2_agent01.csv",
+    "request": "Compare survival between groups",
     "use_llm_router": true,
     "time": "time",
     "event": "event",
-    "group": "trt01",
-    "covariates": ["age"]
+    "group": "horTh01",
+    "covariates": []
   }'
-```
-**Result (excerpt)**
-```jason
 
-{
-  "status": "ok",
-  "selected_tool": "adjustedcurves",
-  "artifacts": {
-    "capability_id": "survival_adjusted_curves",
-    "selected_by": "llm"
-  },
-  "error": null
-}
-```
 
-✔ The agent selects the survival adjusted curves capability and runs an IPTW-adjusted Kaplan–Meier analysis.
+Expected behavior
 
-## Demo 2 — Causal effect estimation (ATE)
+Capability selected: survival_adjusted_curves
 
-**Natural-language request**
+Method: IPTW-adjusted Kaplan–Meier
 
-> “Estimate the causal effect of treatment on outcome”
-```bash
-curl -s -X POST "http://127.0.0.1:8000/run" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "csv": "data/ihdp_data.csv",
-    "request": "Estimate the causal effect of treatment on outcome",
-    "use_llm_router": true,
-    "treatment": "treatment",
-    "outcome": "y_factual",
-    "covariates": ["x1", "x2", "x3", "x4", "x5"]
-  }'
-```
-**Result (excerpt)**
-```json
+Output written to:
+
+out/api/adjustedcurves.summary.json
+
+Output Format
+
+Each run returns:
+
+selected_tool: executed tool
+
+stdout / stderr: human-readable logs
+
+artifacts.summary_json: path to structured JSON output
+
+artifacts.capability_id: selected causal capability
+
+artifacts.router_reason: explanation of tool selection
+
+Example (simplified):
+
 {
   "status": "ok",
   "selected_tool": "causalmodels",
   "artifacts": {
     "capability_id": "causal_ate",
     "summary_json": "out/api/causalmodels.summary.json"
-  },
-  "error": null
+  }
 }
-```
 
-✔ The agent selects the causal ATE capability and runs a doubly robust estimator, producing an ATE with confidence intervals and a structured JSON summary.
+Input Data Assumptions
 
-**Design principles**
+Treatment is binary (0/1 or two distinct levels)
 
-Agentic, not generative
-LLMs are used only for decision-making, not statistical computation.
+Covariates are measured prior to treatment
 
-Deterministic execution
-Once a capability is selected, analysis is fully reproducible.
+No missing values after preprocessing
 
-Explainable routing
-Each run records why a tool was chosen.
+Positivity holds (non-zero probability of treatment assignment)
 
-Structured outputs
-Results are returned as both human-readable logs and machine-readable JSON.
+If these conditions are violated, results may be unstable or estimation may fail.
 
-**Project status**
+Notes
 
-This repository is an MVP / research prototype intended to demonstrate:
+Informational messages from R packages (e.g., package loading) may appear in stderr and can be safely ignored.
 
-agent-based orchestration of causal analyses
-
-clean separation between reasoning and estimation
-
-extensibility to additional causal tasks
-
+Runtime outputs under out/ are not tracked by git.
