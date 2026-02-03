@@ -22,11 +22,11 @@ echo "======================================"
 echo "[DEMO 2] Dialysis survival -> adjustedCurves"
 echo "======================================"
 python src/run_adjustedcurves_demo.py \
-  --csv "data/dialysis survival dataset.csv" \
-  --group begin \
+  --csv "data/PBC_agent01.csv" \
+  --group trt01 \
   --time time \
   --event event \
-  --covariates age,center,disease_diabetes,disease_hypert,disease_other,disease_renal
+  --covariates age
 
 echo ""
 echo "[OK] Dialysis survival demo finished."

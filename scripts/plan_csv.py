@@ -6,9 +6,9 @@ CSV -> robust load report -> planner -> plan.json
 
 Usage examples:
   python scripts/plan_csv.py --csv "data/ihdp_data.csv"
-  python scripts/plan_csv.py --csv "data/dialysis survival dataset.csv"
-  python scripts/plan_csv.py --csv "data/dialysis survival dataset.csv" --treatment disease_diabetes
-  python scripts/plan_csv.py --csv "data/dialysis survival dataset.csv" --time time --event event --treatment disease_diabetes
+  python scripts/plan_csv.py --csv "data/PBC_agent01.csv"
+  python scripts/plan_csv.py --csv "data/PBC_agent01.csv" --treatment trt01
+  python scripts/plan_csv.py --csv "data/PBC_agent01.csv" --time time --event event --treatment trt01
 
 Outputs:
   out/plans/<safe_name>.plan.json

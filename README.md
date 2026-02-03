@@ -42,12 +42,12 @@ A lightweight agentic workflow then:
 curl -s -X POST "http://127.0.0.1:8000/run" \
   -H "Content-Type: application/json" \
   -d '{
-    "csv": "data/dialysis survival dataset.csv",
+    "csv": "data/PBC_agent01.csv",
     "request": "Compare survival between groups with covariate adjustment",
     "use_llm_router": true,
     "time": "time",
     "event": "event",
-    "group": "begin",
+    "group": "trt01",
     "covariates": ["age"]
   }'
 ```
