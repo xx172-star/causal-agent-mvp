@@ -28,6 +28,8 @@ def main():
 
     R_CODE = f"""
 suppressPackageStartupMessages({{
+  library(survival)
+  library(WeightIt)
   library(adjustedCurves)
 }})
 

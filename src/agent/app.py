@@ -1,3 +1,4 @@
+# src/agent/app.py
 from __future__ import annotations
 
 import json
@@ -8,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from .schemas import RunRequest, RunResult
-from .graph import build_graph
+from .graph import graph  # ✅ use singleton graph (SimpleGraph)
 
 # import the *capability* router (returns {"capability_id", "reason"})
 try:
@@ -18,7 +19,6 @@ except Exception:
 
 
 app = FastAPI(title="Causal Agent MVP")
-graph = build_graph()
 
 
 def _repo_root() -> Path:
@@ -60,15 +60,14 @@ def select_capability(req: RunRequest) -> Tuple[str, str, str]:
         try:
             obj = llm_choose_capability(
                 request=req.request,
-                csv_columns=None,  
+                csv_columns=None,
                 model=req.llm_model,
             )
             cap_id = (obj.get("capability_id") or "").strip()
             reason = (obj.get("reason") or "").strip() or "LLM selected capability."
             if cap_id:
                 return cap_id, "llm", reason
-        except Exception as e:
-            # fall through to explicit/task/auto
+        except Exception:
             pass
 
     # 3) explicit task
@@ -110,15 +109,8 @@ def run(req: RunRequest):
             ).model_dump(),
         )
 
-    # route to the two existing pipelines
-    
-    if cap_id == "causal_ate":
-        req.task = "ate"
-        req.use_llm_router = False  # prevent graph/router from overriding
-    elif cap_id == "survival_adjusted_curves":
-        req.task = "survival"
-        req.use_llm_router = False
-    else:
+    # Only two capabilities are implemented right now
+    if cap_id not in ("causal_ate", "survival_adjusted_curves"):
         return JSONResponse(
             status_code=400,
             content=RunResult(
@@ -135,9 +127,18 @@ def run(req: RunRequest):
             ).model_dump(),
         )
 
-    # --- existing behavior (graph) ---
-    state = {"req": req}
-    out = graph.invoke(state)
+    # ✅ IMPORTANT: graph.py expects either:
+    #   - src.agent.schemas_io.RunRequest dataclass
+    #   - OR a dict of RunRequest fields
+    # Your FastAPI RunRequest is a Pydantic model -> pass dict via model_dump()
+    payload = req.model_dump()
+
+    # Force graph to use the already-selected capability and avoid re-routing
+    payload["capability_id"] = cap_id
+    payload["use_llm_router"] = False
+
+    # --- new behavior (plugin framework graph) ---
+    out = graph.invoke({"req": payload})
 
     tool_result = out.get("tool_result", {}) if isinstance(out, dict) else {}
     selected_tool = out.get("selected_tool") if isinstance(out, dict) else None
@@ -146,6 +147,7 @@ def run(req: RunRequest):
     if not isinstance(base_artifacts, dict):
         base_artifacts = {}
 
+    # Always attach router metadata (your app-level router)
     artifacts = {
         **base_artifacts,
         "capability_id": cap_id,
@@ -153,23 +155,11 @@ def run(req: RunRequest):
         "router_reason": router_reason,
     }
 
-    # If graph reported an error and no tool_result, return 400
-    if isinstance(out, dict) and out.get("error") and not tool_result:
-        return JSONResponse(
-            status_code=400,
-            content=RunResult(
-                status="error",
-                selected_tool=selected_tool,
-                stdout="",
-                stderr="",
-                artifacts=artifacts,
-                error=str(out.get("error")),
-            ).model_dump(),
-        )
-
-    # Tool exit handling
+    # Tool exit handling (graph may return ok/error)
     code = tool_result.get("exit_code", 1) if isinstance(tool_result, dict) else 1
-    if code != 0:
+    status = out.get("status") if isinstance(out, dict) else "error"
+
+    if status != "ok" or code != 0:
         return JSONResponse(
             status_code=500,
             content=RunResult(
@@ -178,7 +168,7 @@ def run(req: RunRequest):
                 stdout=str(tool_result.get("stdout", "")),
                 stderr=str(tool_result.get("stderr", "")),
                 artifacts=artifacts,
-                error=(out.get("error") if isinstance(out, dict) else None) or f"Tool exit_code={code}",
+                error=f"Tool failed (status={status}, exit_code={code})",
             ).model_dump(),
         )
 
@@ -188,5 +178,8 @@ def run(req: RunRequest):
         stdout=str(tool_result.get("stdout", "")),
         stderr=str(tool_result.get("stderr", "")),
         artifacts=artifacts,
-        error=(out.get("error") if isinstance(out, dict) else None),
+        error=None,
     )
+
+import os
+

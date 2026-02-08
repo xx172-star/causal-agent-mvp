@@ -1,97 +1,219 @@
+# src/agent/graph.py
 from __future__ import annotations
 
-from typing import Any, Dict, TypedDict
+from dataclasses import asdict, is_dataclass
+from typing import Any, Dict, Optional, Tuple
 
-from langgraph.graph import StateGraph, END
+from src.agent.schemas_io import RunRequest, ToolResult
 
-from .schemas import RunRequest
-from .tools import run_causalmodels_tool, run_adjustedcurves_tool
-
-# LLM router is optional
-try:
-    from .router_llm import llm_choose_tool
-except Exception:
-    llm_choose_tool = None  # type: ignore
+# Importing tools triggers registration via src/agent/tools/__init__.py
+import src.agent.tools  # noqa: F401
+from src.agent.tools.registry import get_tool
 
 
-class AgentState(TypedDict, total=False):
-    req: RunRequest
-    selected_tool: str
-    tool_result: Dict[str, Any]
-    error: str
-
-
-def choose_tool_rule_based(req: RunRequest) -> str:
-    if req.task == "ate":
-        return "causalmodels"
-    if req.task == "survival":
-        return "adjustedcurves"
-
-    # auto
+# -----------------------------
+# Router helpers
+# -----------------------------
+def _router_fallback(req: RunRequest) -> Tuple[str, str, str]:
+    """
+    Rule-based fallback:
+      - if time/event/group present -> survival_adjusted_curves
+      - else -> causal_ate
+    """
     if req.time and req.event and req.group:
-        return "adjustedcurves"
-    return "causalmodels"
+        return "survival_adjusted_curves", "auto", "Auto: time/event/group detected."
+    return "causal_ate", "auto", "Auto: defaulting to causal_ate."
 
 
-def choose_tool(state: AgentState) -> AgentState:
-    req = state["req"]
+def _try_llm_router(req: RunRequest) -> Optional[Tuple[str, str, str]]:
+    """
+    Use your repo's router_llm.llm_choose_capability if available.
+    Returns (capability_id, selected_by, router_reason) or None.
+    """
+    try:
+        from src.agent import router_llm
+    except Exception:
+        return None
 
-    # Default: rule-based (stable MVP)
-    selected = choose_tool_rule_based(req)
+    llm_fn = getattr(router_llm, "llm_choose_capability", None)
+    if not callable(llm_fn):
+        return None
 
-    # Optional: LLM router (only if user asks AND available)
-    if req.use_llm_router and llm_choose_tool is not None:
-        try:
-            obj = llm_choose_tool(req.model_dump(), model=req.llm_model)
-            selected = obj["selected_tool"]
-        except Exception as e:
-            # fall back to rule-based on any error
-            state["error"] = f"LLM router error: {e}"
-
-    state["selected_tool"] = selected
-    return state
-
-
-def run_selected_tool(state: AgentState) -> AgentState:
-    req = state["req"]
-    selected = state.get("selected_tool") or choose_tool_rule_based(req)
+    # LLM needs a non-empty request string
+    if not (req.request and isinstance(req.request, str) and req.request.strip()):
+        return None
 
     try:
-        if selected == "adjustedcurves":
-            r = run_adjustedcurves_tool(
-                csv=req.csv,
-                group=req.group,
-                time=req.time,
-                event=req.event,
-                covariates=req.covariates,
-                out_dir=req.out_dir,
+        obj = llm_fn(
+            request=req.request,
+            csv_columns=None,
+            model=getattr(req, "llm_model", None),
+        )
+    except Exception:
+        return None
+
+    if not isinstance(obj, dict):
+        return None
+
+    cap_id = (obj.get("capability_id") or obj.get("cap_id") or "").strip()
+    reason = (obj.get("reason") or obj.get("router_reason") or "").strip()
+
+    if not cap_id:
+        return None
+
+    return cap_id, "llm", (reason or "LLM selected capability.")
+
+
+def _choose_capability(req: RunRequest) -> Tuple[str, str, str]:
+    """
+    Priority:
+      1) forced by req.capability_id
+      2) LLM router (if req.use_llm_router)
+      3) rule-based fallback
+    """
+    if req.capability_id:
+        return req.capability_id, "capability_id", "Forced by capability_id."
+
+    if req.use_llm_router:
+        llm_out = _try_llm_router(req)
+        if llm_out is not None:
+            cap_id, selected_by, router_reason = llm_out
+            return cap_id, selected_by or "llm", router_reason or ""
+
+    return _router_fallback(req)
+
+
+# -----------------------------
+# State / request normalization
+# -----------------------------
+def _coerce_req(obj: Any) -> RunRequest:
+    """
+    Accept:
+      - RunRequest dataclass
+      - dict with RunRequest fields (FastAPI payload or internal code)
+      - other dataclass convertible to RunRequest
+    """
+    if isinstance(obj, RunRequest):
+        return obj
+
+    if is_dataclass(obj) and hasattr(obj, "__dict__"):
+        return RunRequest(**asdict(obj))
+
+    if isinstance(obj, dict):
+        allowed = set(RunRequest.__dataclass_fields__.keys())
+        clean = {k: v for k, v in obj.items() if k in allowed}
+        return RunRequest(**clean)
+
+    raise TypeError(f"Unsupported req type: {type(obj)}")
+
+
+def _toolresult_to_dict(tr: ToolResult) -> Dict[str, Any]:
+    return {
+        "status": tr.status,
+        "selected_tool": tr.selected_tool,
+        "stdout": tr.stdout,
+        "stderr": tr.stderr,
+        "exit_code": tr.exit_code,
+        "artifacts": tr.artifacts or {},
+        "warnings": tr.warnings or [],
+    }
+
+
+# -----------------------------
+# Minimal graph object
+# -----------------------------
+class SimpleGraph:
+    """
+    Minimal graph compatible with your existing usage:
+      out = graph.invoke({"req": req})
+    """
+
+    def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(state, dict):
+            raise TypeError("state must be a dict")
+
+        if "req" not in state:
+            raise KeyError("state must contain key 'req'")
+
+        req = _coerce_req(state["req"])
+
+        cap_id, selected_by, router_reason = _choose_capability(req)
+
+        # Fetch tool from registry
+        try:
+            tool = get_tool(cap_id)
+        except KeyError as e:
+            artifacts = {
+                "capability_id": cap_id,
+                "selected_by": selected_by,
+                "router_reason": router_reason,
+            }
+            tr = ToolResult(
+                status="error",
+                selected_tool="none",
+                stdout="",
+                stderr=str(e),
+                exit_code=2,
+                artifacts=artifacts,
+                warnings=[str(e)],
             )
-        else:
-            r = run_causalmodels_tool(
-                csv=req.csv,
-                treatment=req.treatment,
-                outcome=req.outcome,
-                covariates=req.covariates,
-                max_covariates=req.max_covariates,
-                out_dir=req.out_dir,
+            return {
+                "status": "error",
+                "selected_tool": "none",
+                "stdout": tr.stdout,
+                "stderr": tr.stderr,
+                "artifacts": tr.artifacts,
+                "tool_result": _toolresult_to_dict(tr),
+            }
+
+        ok, reason = tool.validate(req)
+        if not ok:
+            artifacts = {
+                "capability_id": cap_id,
+                "selected_by": selected_by,
+                "router_reason": router_reason,
+            }
+            tr = ToolResult(
+                status="error",
+                selected_tool=tool.name,
+                stdout="",
+                stderr=reason,
+                exit_code=2,
+                artifacts=artifacts,
+                warnings=[reason],
             )
+            return {
+                "status": "error",
+                "selected_tool": tool.name,
+                "stdout": tr.stdout,
+                "stderr": tr.stderr,
+                "artifacts": tr.artifacts,
+                "tool_result": _toolresult_to_dict(tr),
+            }
 
-        state["tool_result"] = r
-    except Exception as e:
-        state["error"] = str(e)
+        # Run tool
+        tr = tool.run(req)
 
-    return state
+        # Ensure router info is always present in artifacts
+        artifacts = dict(tr.artifacts or {})
+        artifacts.update(
+            {
+                "capability_id": cap_id,
+                "selected_by": selected_by,
+                "router_reason": router_reason,
+            }
+        )
+        tr.artifacts = artifacts
+
+        return {
+            "status": tr.status,
+            "selected_tool": tr.selected_tool,
+            "stdout": tr.stdout,
+            "stderr": tr.stderr,
+            "artifacts": artifacts,
+            "tool_result": _toolresult_to_dict(tr),
+        }
 
 
-def build_graph():
-    g = StateGraph(AgentState)
-    g.add_node("choose_tool", choose_tool)
-    g.add_node("run_selected_tool", run_selected_tool)
-
-    g.set_entry_point("choose_tool")
-    g.add_edge("choose_tool", "run_selected_tool")
-    g.add_edge("run_selected_tool", END)
-    return g.compile()
-
-
-graph = build_graph()
+# Singleton graph (importable by app.py)
+graph = SimpleGraph()
