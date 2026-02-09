@@ -2,8 +2,8 @@
 
 An agent-based causal inference pipeline that automatically selects and executes appropriate causal analysis tools (e.g., ATE estimation, survival adjusted curves) based on user requests and dataset structure.
 
-The system combines **LLM-assisted routing**, **rule-based safeguards**, and
-**deterministic statistical backends**, and produces both human-readable outputs
+The system combines LLM-assisted routing, rule-based safeguards, and
+deterministic statistical backends, and produces both human-readable outputs
 and structured JSON artifacts for downstream use.
 ---
 
@@ -71,7 +71,7 @@ curl -s -X POST "http://127.0.0.1:8000/run" \
   }'
 ```
 
-Expected behavior:
+#### Expected behavior:
 
 Selected capability: causal_ate
 
@@ -100,7 +100,7 @@ curl -s -X POST "http://127.0.0.1:8000/run" \
 
 ```
 
-Expected behavior:
+#### Expected behavior:
 
 Selected capability: survival_adjusted_curves
 
@@ -124,7 +124,7 @@ router_reason: explanation of the routing decision
 
 optional paths to serialized JSON summaries
 
-Example response:
+#### Example response:
 
 ```json
 {
@@ -159,7 +159,7 @@ Column names must be explicitly referenced in the API request.
 
 ### Required Variables
 
-1. Treatment / Exposure
+#### Treatment / Exposure
 
 A treatment (or exposure) variable must be specified.
 
@@ -173,7 +173,7 @@ Treatment assignment is assumed to be observed at baseline.
 
 ---
 
-2. Outcome
+#### Outcome
 
 For ATE estimation:
 
@@ -188,7 +188,7 @@ An event indicator must be provided (1 = event, 0 = censored).
 Outcome variables must not contain missing values after preprocessing.
 ---
 
-3. Covariates (Confounders)
+#### Covariates (Confounders)
 
 One or more covariates may be supplied for confounding adjustment.
 
