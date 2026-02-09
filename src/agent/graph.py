@@ -124,7 +124,7 @@ def _toolresult_to_dict(tr: ToolResult) -> Dict[str, Any]:
 # -----------------------------
 class SimpleGraph:
     """
-    Minimal graph compatible with your existing usage:
+    Minimal graph compatible with existing usage:
       out = graph.invoke({"req": req})
     """
 
