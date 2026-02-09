@@ -2,19 +2,21 @@
 
 An agent-based causal inference pipeline that automatically selects and executes appropriate causal analysis tools (e.g., ATE estimation, survival adjusted curves) based on user requests and dataset structure.
 
-The system combines rule-based checks, LLM-assisted routing, and deterministic statistical backends, and produces both human-readable outputs and structured JSON artifacts.
-
+The system combines **LLM-assisted routing**, **rule-based safeguards**, and
+**deterministic statistical backends**, and produces both human-readable outputs
+and structured JSON artifacts for downstream use.
 ---
 
-## Features
+## Key Features
 
 - Agentic workflow for causal inference
-- Automatic capability selection via an LLM router
+- LLM-based capability routing with deterministic fallback
+- Plugin-based, extensible tool architecture
 - Support for:
   - Average Treatment Effect (ATE) estimation
   - Survival analysis with confounder-adjusted curves
-- End-to-end reproducible demos with real datasets
-- Structured JSON outputs for downstream use
+- End-to-end reproducible demos on real-world datasets
+- Standardized JSON artifacts for inspection and reuse
 
 ---
 
@@ -26,7 +28,7 @@ causal-agent-mvp/
 
 ├── scripts/ # Demo and helper scripts
 
-├── src/agent/ # Agent logic, router, schemas
+├── src/agent/ # Agent logic, router, schemas, and tools
 
 ├── out/ # Runtime outputs (gitignored)
 
@@ -45,8 +47,11 @@ causal-agent-mvp/
 
 ## Quickstart: End-to-End Demos
 
-Below are two fully tested demo commands.  
-Both have been run successfully end-to-end and generate structured JSON outputs under `out/api/`.
+Below are two fully tested demo commands illustrating the complete
+LLM-routed causal analysis pipeline.
+
+Both demos have been run successfully end-to-end and return structured
+JSON outputs.
 
 ---
 
@@ -74,12 +79,6 @@ Backend: doubly robust ATE estimation
 
 Output includes ATE, standard error, and 95% confidence interval
 
-JSON summary written to:
-
-```pgsql
-
-out/api/causalmodels.summary.json
-```
 
 ### Demo 2: Survival Adjusted Curves
 
@@ -107,36 +106,34 @@ Selected capability: survival_adjusted_curves
 
 Method: IPTW-adjusted Kaplan–Meier
 
-JSON summary written to:
-```pgsql
-
-out/api/adjustedcurves.summary.json
-```
-
-
-
 ### Output Format
 
-Each run returns:
+Each API call returns a structured response containing:
 
-selected_tool: executed tool
+selected_tool: the executed backend tool
 
 stdout / stderr: human-readable logs
 
-artifacts.summary_json: path to structured JSON output
+artifacts:
 
-artifacts.capability_id: selected causal capability
+capability_id: selected causal capability
 
-artifacts.router_reason: explanation of tool selection
+selected_by: llm or auto
 
-Example:
+router_reason: explanation of the routing decision
+
+optional paths to serialized JSON summaries
+
+Example response:
+
 ```json
 {
   "status": "ok",
   "selected_tool": "causalmodels",
   "artifacts": {
     "capability_id": "causal_ate",
-    "summary_json": "out/api/causalmodels.summary.json"
+    "selected_by": "llm",
+    "router_reason": "The request explicitly asks for ATE estimation."
   }
 }
 ```
@@ -144,89 +141,86 @@ Example:
 
 ## Input Data Requirements
 
-This framework assumes that the input dataset satisfies the following requirements.  
-As long as these conditions are met, the pipeline can be executed end-to-end without modification to the core codebase.
+The framework assumes that the input dataset satisfies the following conditions.
+If these conditions are met, the pipeline can be executed end-to-end without
+modification to the core codebase.
 
 ---
 
 ### General Format
 
-- Input data must be provided as a **CSV file**.
-- Each row corresponds to one observational unit (e.g., patient or subject).
-- Column names must be explicitly referenced in the API request.
+Input data must be provided as a CSV file.
+
+Each row corresponds to one observational unit.
+
+Column names must be explicitly referenced in the API request.
 
 ---
 
 ### Required Variables
 
-The required variables depend on the selected causal task.
+1. Treatment / Exposure
 
-#### 1. Treatment / Exposure
+A treatment (or exposure) variable must be specified.
 
-- A treatment (or exposure) variable must be specified.
-- The treatment variable must be **binary**, represented as:
-  - `0 / 1`, or  
-  - two distinct values that clearly encode treated vs. control groups.
-- Treatment assignment is assumed to be observed and fixed at baseline.
+The treatment variable must be binary:
 
----
+0 / 1, or
 
-#### 2. Outcome
+two distinct values encoding treated vs. control groups.
 
-- For **ATE estimation**:
-  - The outcome may be **binary or continuous**.
-- For **survival analysis**:
-  - A **time-to-event** variable must be provided.
-  - An **event indicator** must be provided (`1` = event, `0` = censored).
-- Outcome variables must not contain missing values after preprocessing.
+Treatment assignment is assumed to be observed at baseline.
 
 ---
 
-#### 3. Covariates (Confounders)
+2. Outcome
 
-- One or more covariates may be provided to adjust for confounding.
-- Covariates must:
-  - Be measured **prior to treatment assignment**
-  - Be numeric or numerically encoded (e.g., one-hot encoding for categorical variables)
-- Missing values must be handled prior to analysis.
+For ATE estimation:
 
+The outcome may be binary or continuous.
+
+For survival analysis:
+
+A time-to-event variable is required.
+
+An event indicator must be provided (1 = event, 0 = censored).
+
+Outcome variables must not contain missing values after preprocessing.
+---
+
+3. Covariates (Confounders)
+
+One or more covariates may be supplied for confounding adjustment.
+
+Covariates must:
+
+Be measured prior to treatment assignment
+
+Be numeric or numerically encoded
+
+Missing values must be handled before execution.
 ---
 
 ### Structural and Causal Assumptions
 
 The framework relies on standard causal inference assumptions:
 
-- **Consistency**: observed outcomes correspond to the assigned treatment.
-- **Positivity**: each covariate pattern has a non-zero probability of receiving each treatment level.
-- **No unmeasured confounding**, conditional on the provided covariates.
+Consistency
 
-These assumptions are not automatically verified by the framework and must be justified by the user.
+Positivity
 
----
+No unmeasured confounding, conditional on supplied covariates
 
-### Preprocessing Expectations
-
-To ensure stable execution:
-
-- All required variables must be present and correctly specified in the request.
-- Missing values should be removed or imputed prior to execution.
-- Categorical variables should be encoded numerically.
-- Extremely rare treatment groups or severe lack of covariate overlap may lead to unstable estimates.
+These assumptions are not automatically verified and must be justified
+by the user.
 
 ---
 
 ### Notes on Robustness
 
-- Informational messages or warnings from underlying statistical packages may appear during execution and do not necessarily indicate failure.
-- If the input data violate the requirements above (e.g., severe non-positivity), estimation results may be unstable or unreliable.
+Informational messages from underlying statistical packages may appear
+during execution and do not necessarily indicate failure.
 
-In summary, this framework is designed to be **methodologically transparent rather than permissive**:  
-it does not attempt to automatically coerce invalid inputs, but instead clearly documents the conditions under which valid causal analyses can be performed.
-
-
-### Notes
-
-Informational messages from R packages (e.g., package loading) may appear in stderr and can be safely ignored.
-
-Runtime outputs under out/ are not tracked by git.
+Severe violations of positivity or covariate overlap may lead to unstable
+estimates.
 
