@@ -186,6 +186,7 @@ A time-to-event variable is required.
 An event indicator must be provided (1 = event, 0 = censored).
 
 Outcome variables must not contain missing values after preprocessing.
+
 ---
 
 #### Covariates (Confounders)
