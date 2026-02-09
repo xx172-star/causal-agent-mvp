@@ -5,6 +5,7 @@ An agent-based causal inference pipeline that automatically selects and executes
 The system combines LLM-assisted routing, rule-based safeguards, and
 deterministic statistical backends, and produces both human-readable outputs
 and structured JSON artifacts for downstream use.
+
 ---
 
 ## Key Features
