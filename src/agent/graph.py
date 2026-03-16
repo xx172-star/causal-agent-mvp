@@ -202,7 +202,7 @@ def _normalize_tool_result(raw: Any, tool_name: str) -> Dict[str, Any]:
 # -----------------------------
 class SimpleGraph:
     """
-    Minimal graph compatible with your existing usage:
+    Minimal graph compatible with existing usage:
       out = graph.invoke({"req": req})
 
     Guarantees:
