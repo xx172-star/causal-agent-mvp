@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from .schemas import RunRequest, RunResult
-from .graph import graph  # ✅ use singleton graph (SimpleGraph)
+from .graph import graph  
 
 # import the *capability* router (returns {"capability_id", "reason"})
 try:
@@ -262,7 +262,7 @@ def run(req: RunRequest):
     if not isinstance(base_artifacts, dict):
         base_artifacts = {}
 
-    # Always attach router metadata (your app-level router)
+    # Always attach router metadata
     artifacts: Dict[str, Any] = {
         **base_artifacts,
         "capability_id": cap_id,
